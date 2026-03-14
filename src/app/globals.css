@@ -1,0 +1,32 @@
+@import "tailwindcss";
+
+@theme {
+  --color-gpt: #10a37f;
+  --color-gpt-light: #34d399;
+  --color-claude: #f97316;
+  --color-claude-light: #fb923c;
+  --color-gemini: #4285f4;
+  --color-gemini-light: #60a5fa;
+  --color-grok: #ef4444;
+  --color-grok-light: #f87171;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background: #09090b;
+  color: #e4e4e7;
+}
+
+textarea:focus,
+input:focus,
+select:focus {
+  outline: none;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #3f3f46 transparent;
+}
