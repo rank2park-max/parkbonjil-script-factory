@@ -57,6 +57,10 @@ export default function TagSourcesArea({
     }
   };
 
+  const handleConfirmFinal = () => {
+    onConfirmFinal();
+  };
+
   const displayContent = sourceTaggedDraft ?? fullScript;
   const hasTaggedContent = sourceTaggedDraft !== null;
 
