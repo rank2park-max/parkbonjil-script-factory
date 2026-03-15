@@ -1,6 +1,64 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 
+const MAX_CHUNK_SIZE = 3000;
+const OUTLINE_SEPARATOR = "\n\n---\n\n";
+
+function splitByOutline(script: string): string[] {
+  const sections = script.split(OUTLINE_SEPARATOR).map((s) => s.trim()).filter(Boolean);
+  return sections.length > 1 ? sections : [];
+}
+
+function splitByLength(script: string): string[] {
+  const chunks: string[] = [];
+  let remaining = script;
+
+  while (remaining.length > 0) {
+    if (remaining.length <= MAX_CHUNK_SIZE) {
+      chunks.push(remaining);
+      break;
+    }
+
+    const segment = remaining.slice(0, MAX_CHUNK_SIZE);
+    const minBreak = MAX_CHUNK_SIZE * 0.6;
+
+    let breakPoint = MAX_CHUNK_SIZE;
+    const lastParaBreak = segment.lastIndexOf("\n\n");
+    const lastPeriodBreak = Math.max(
+      segment.lastIndexOf(".\n"),
+      segment.lastIndexOf("?\n"),
+      segment.lastIndexOf("!\n")
+    );
+    const lastSentenceEnd = Math.max(
+      segment.lastIndexOf("."),
+      segment.lastIndexOf("?"),
+      segment.lastIndexOf("!")
+    );
+
+    if (lastParaBreak >= minBreak) {
+      breakPoint = lastParaBreak + 2;
+    } else if (lastPeriodBreak >= minBreak) {
+      breakPoint = lastPeriodBreak + 1;
+    } else if (lastSentenceEnd >= minBreak) {
+      breakPoint = lastSentenceEnd + 1;
+    }
+
+    chunks.push(remaining.slice(0, breakPoint).trimEnd());
+    remaining = remaining.slice(breakPoint).trimStart();
+  }
+
+  return chunks;
+}
+
+function getChunks(script: string): { chunks: string[]; separator: string } {
+  const outlineChunks = splitByOutline(script);
+  if (outlineChunks.length > 1) {
+    return { chunks: outlineChunks, separator: OUTLINE_SEPARATOR };
+  }
+  const lengthChunks = splitByLength(script);
+  return { chunks: lengthChunks, separator: "\n\n" };
+}
+
 export async function POST(req: NextRequest) {
   try {
     const apiKey = req.headers.get("x-anthropic-api-key");
@@ -23,6 +81,7 @@ export async function POST(req: NextRequest) {
     }
 
     const anthropic = new Anthropic({ apiKey });
+    const { chunks: scriptChunks, separator: chunkSeparator } = getChunks(script.trim());
 
     const systemPrompt = `## ⛔ 최우선 규칙 (절대 위반 금지)
 절대로 대본 원문을 수정하지 마라. 단 한 글자도 바꾸지 마라. 원문을 그대로 유지하고, 단락 사이에 소스 태그만 삽입하라. 원문의 문장을 요약하거나 다시 쓰는 것은 금지다. 원문 텍스트가 100% 동일하게 유지되어야 한다.
@@ -94,22 +153,40 @@ export async function POST(req: NextRequest) {
 - 모든 단락에 빠짐없이 태그를 달아라
 - 연속으로 같은 스타일(예: 실제사진만 10개)이 나오지 않도록 적절히 섞어라`;
 
-    const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 8192,
-      system: systemPrompt,
-      messages: [{ role: "user", content: script }],
-    });
+    const taggedParts: string[] = [];
 
-    const textBlock = response.content.find((block) => block.type === "text");
-    if (!textBlock || textBlock.type !== "text") {
-      return NextResponse.json(
-        { error: "Claude 응답이 비어있습니다." },
-        { status: 500 }
-      );
+    for (let i = 0; i < scriptChunks.length; i++) {
+      const chunk = scriptChunks[i];
+      const isFirst = i === 0;
+      const isLast = i === scriptChunks.length - 1;
+      const contextPrefix = scriptChunks.length > 1
+        ? `[${i + 1}/${scriptChunks.length} 청크${!isFirst ? " - 이전 청크의 뒤에 이어지는 내용" : ""}${!isLast ? " - 다음 청크가 이어짐" : ""}]\n\n`
+        : "";
+
+      const userMessage = contextPrefix + chunk;
+
+      const response = await anthropic.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 16000,
+        system: systemPrompt,
+        messages: [{ role: "user", content: userMessage }],
+      });
+
+      const textBlock = response.content.find((block) => block.type === "text");
+      if (!textBlock || textBlock.type !== "text") {
+        return NextResponse.json(
+          { error: `Claude 응답이 비어있습니다. (청크 ${i + 1}/${scriptChunks.length})` },
+          { status: 500 }
+        );
+      }
+
+      const tagged = textBlock.text.replace(/^\[\d+\/\d+ 청크[^\]]*\]\n\n?/i, "").trim();
+      taggedParts.push(tagged);
     }
 
-    return NextResponse.json({ taggedScript: textBlock.text });
+    const taggedScript = taggedParts.join(chunkSeparator);
+
+    return NextResponse.json({ taggedScript });
   } catch (error: unknown) {
     const message =
       error instanceof Error

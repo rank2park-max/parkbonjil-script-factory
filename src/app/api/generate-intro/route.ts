@@ -85,7 +85,7 @@ ${baseDraft}`
     }
 
     const response = await openai.chat.completions.create({
-      model: "gpt-5.4",
+      model: "gpt-5.3",
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: systemContent },

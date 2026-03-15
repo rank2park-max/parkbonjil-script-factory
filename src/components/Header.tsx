@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { PenLine, Settings, FolderOpen } from "lucide-react";
+import { PenLine, Settings, FolderOpen, Film } from "lucide-react";
 
 export default function Header() {
   const pathname = usePathname();
@@ -23,6 +23,12 @@ export default function Header() {
         </Link>
         <nav className="flex items-center gap-1">
           <Link href="/" className={linkClass("/")}>홈</Link>
+          <Link href="/tag-sources" className={linkClass("/tag-sources")}>
+            <span className="flex items-center gap-1.5">
+              <Film className="w-3.5 h-3.5" />
+              소스 태깅
+            </span>
+          </Link>
           <Link href="/projects" className={linkClass("/projects")}>
             <span className="flex items-center gap-1.5">
               <FolderOpen className="w-3.5 h-3.5" />

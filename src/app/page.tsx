@@ -16,6 +16,7 @@ import {
   BookOpen,
 } from "lucide-react";
 import { isSupabaseConfigured } from "@/lib/supabase";
+import StandaloneTagSourcesSection from "@/components/StandaloneTagSourcesSection";
 
 interface TopicItem {
   title: string;
@@ -439,6 +440,11 @@ export default function HomePage() {
             )}
           </div>
         </form>
+
+        {/* 영상 소스 태깅 - 독립 도구 */}
+        <div id="tag-sources" className="mt-16 pt-12 border-t border-zinc-800">
+          <StandaloneTagSourcesSection />
+        </div>
       </div>
     </div>
   );
