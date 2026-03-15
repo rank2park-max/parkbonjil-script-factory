@@ -83,9 +83,41 @@ export default function WorkArea({
     }
   };
 
-  const handleRegenerateDraft = () => {
+  const handleRefineDraft = async () => {
     if (!item.editedDraft.trim()) return;
-    handleGenerate(item.editedDraft);
+    setGenerating(true);
+    setError(null);
+    try {
+      const apiKey = getApiKey("openai");
+      if (!apiKey) throw new Error("OpenAI API 키를 설정 페이지에서 입력해주세요.");
+
+      const res = await fetch("/api/generate-draft", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-openai-api-key": apiKey,
+        },
+        body: JSON.stringify({
+          topic,
+          duration,
+          outline: allOutlineTitles,
+          currentOutline: item.title,
+          previousDrafts,
+          referenceMaterials: referenceMaterials || undefined,
+          baseDraft: item.editedDraft,
+          refine: true,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      onUpdate({ editedDraft: data.content });
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "오류가 발생했습니다.");
+    } finally {
+      setGenerating(false);
+    }
   };
 
   const handleSelectDraft = (index: number) => {
@@ -201,8 +233,8 @@ export default function WorkArea({
           </div>
         )}
 
-        {/* Loading: Generating */}
-        {generating && (
+        {/* Loading: Generating (Phase 1에서만 전체 화면, refining 중엔 Phase 3 유지) */}
+        {generating && !hasSelection && (
           <div className="flex flex-col items-center justify-center py-16">
             <Loader2 className="w-8 h-8 text-gpt animate-spin mb-4" />
             <p className="text-zinc-400">GPT가 초안을 작성 중입니다...</p>
@@ -238,7 +270,7 @@ export default function WorkArea({
           </div>
         )}
 
-        {/* Phase 3: Edit selected draft */}
+        {/* Phase 3: Edit selected draft (refining 중에도 에디터 유지) */}
         {hasSelection && !hasRewrite && !rewriting && (
           <div>
             <div className="flex items-center gap-2 mb-3">
@@ -253,7 +285,7 @@ export default function WorkArea({
             />
             <div className="flex items-center gap-3 mt-4 flex-wrap">
               <button
-                onClick={handleRegenerateDraft}
+                onClick={handleRefineDraft}
                 disabled={generating || !item.editedDraft.trim()}
                 className="px-5 py-2.5 bg-gpt hover:bg-gpt-light disabled:opacity-50 text-white font-medium rounded-lg transition-colors flex items-center gap-2"
               >
@@ -262,7 +294,7 @@ export default function WorkArea({
                 ) : (
                   <RefreshCw className="w-4 h-4" />
                 )}
-                이 내용으로 다시 생성
+                이 내용으로 GPT 다시 돌리기
               </button>
               <button
                 onClick={() => handleRewrite()}

@@ -75,9 +75,39 @@ export default function IntroArea({
     }
   };
 
-  const handleRegenerate = () => {
+  const handleRegenerate = async () => {
     if (!intro.editedDraft.trim()) return;
-    handleGenerate(intro.editedDraft);
+    setGenerating(true);
+    setError(null);
+    try {
+      const apiKey = getApiKey("openai");
+      if (!apiKey) throw new Error("OpenAI API 키를 설정 페이지에서 입력해주세요.");
+
+      const res = await fetch("/api/generate-intro", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-openai-api-key": apiKey,
+        },
+        body: JSON.stringify({
+          topic,
+          duration,
+          outline: allOutlineTitles,
+          referenceMaterials: referenceMaterials || undefined,
+          baseDraft: intro.editedDraft,
+          refine: true,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      onUpdate({ editedDraft: data.content });
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "오류가 발생했습니다.");
+    } finally {
+      setGenerating(false);
+    }
   };
 
   const handleSelectDraft = (index: number) => {

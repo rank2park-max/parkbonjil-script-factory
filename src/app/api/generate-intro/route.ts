@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { topic, duration, outline, referenceMaterials, baseDraft } =
+    const { topic, duration, outline, referenceMaterials, baseDraft, refine } =
       await req.json();
 
     const openai = new OpenAI({ apiKey });
@@ -62,20 +62,33 @@ export async function POST(req: NextRequest) {
 전체 목차:
 ${outline.map((item: string, i: number) => `${i + 1}. ${item}`).join("\n")}`;
 
-    const userMessage = baseDraft
-      ? `${refBlock}${baseInfo}
+    const isRefine = refine && baseDraft;
+
+    let systemContent: string;
+    let userMessage: string;
+
+    if (isRefine) {
+      systemContent = `아래 도입부를 더 자연스럽고 매끄럽게 다듬어줘. 박본질 스타일을 유지하면서 내용은 그대로 가되, 표현만 더 좋게 만들어서 1개만 돌려줘.
+
+반드시 아래 JSON 형식으로만 응답해주세요: { "content": "다듬어진 도입부 내용" }`;
+      userMessage = baseDraft;
+    } else {
+      systemContent = systemPrompt;
+      userMessage = baseDraft
+        ? `${refBlock}${baseInfo}
 
 아래 도입부를 기반으로 더 발전시켜서 5개 버전을 다시 만들어줘. 각 버전은 서로 다른 스타일(충격형/스토리형/데이터형/질문형/비유형)로 작성하고, 5개는 서로 겹치는 표현이 없어야 한다.
 
 [기존 도입부]
 ${baseDraft}`
-      : `${refBlock}${baseInfo}`;
+        : `${refBlock}${baseInfo}`;
+    }
 
     const response = await openai.chat.completions.create({
       model: "gpt-5.4",
       response_format: { type: "json_object" },
       messages: [
-        { role: "system", content: systemPrompt },
+        { role: "system", content: systemContent },
         { role: "user", content: userMessage },
       ],
       temperature: 0.8,
@@ -90,6 +103,9 @@ ${baseDraft}`
     }
 
     const parsed = JSON.parse(content);
+    if (isRefine && parsed.content) {
+      return NextResponse.json({ content: parsed.content });
+    }
     return NextResponse.json(parsed);
   } catch (error: unknown) {
     const message =

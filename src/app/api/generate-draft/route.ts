@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { topic, duration, outline, currentOutline, previousDrafts, referenceMaterials, baseDraft } =
+    const { topic, duration, outline, currentOutline, previousDrafts, referenceMaterials, baseDraft, refine } =
       await req.json();
 
     const openai = new OpenAI({ apiKey });
@@ -86,20 +86,36 @@ ${outline.map((item: string, i: number) => `${i + 1}. ${item}`).join("\n")}
 
 ${previousDrafts ? `이전까지 확정된 대본:\n${previousDrafts}` : "첫 번째 목차입니다."}`;
 
-    const userMessage = baseDraft
-      ? `${baseInfo}
+    const isRefine = refine && baseDraft;
+    let userMessage: string;
+
+    if (isRefine) {
+      userMessage = `${baseInfo}
+
+아래 초안을 더 자연스럽고 매끄럽게 다듬어줘. 박본질 스타일을 유지하면서 내용은 그대로 가되, 표현만 더 좋게 만들어서 1개만 돌려줘.
+
+[초안]
+${baseDraft}`;
+    } else {
+      userMessage = baseDraft
+        ? `${baseInfo}
 
 아래 초안을 기반으로 3가지 스타일(비유 중심/논리 전개/질문-답변)로 각각 발전시켜서 새 초안 3개를 만들어줘.
 
 [기존 초안]
 ${baseDraft}`
-      : baseInfo;
+        : baseInfo;
+    }
+
+    const refineSystemAddon = isRefine
+      ? `\n\n지금은 다듬기 모드입니다. 사용자 초안 1개를 받아서 표현만 개선한 1개를 돌려줘.\n반드시 아래 JSON 형식으로만 응답해주세요:\n{ "content": "다듬어진 초안 내용" }`
+      : "";
 
     const response = await openai.chat.completions.create({
       model: "gpt-5.4",
       response_format: { type: "json_object" },
       messages: [
-        { role: "system", content: systemPrompt },
+        { role: "system", content: systemPrompt + refineSystemAddon },
         { role: "user", content: userMessage },
       ],
       temperature: 0.8,
@@ -114,6 +130,9 @@ ${baseDraft}`
     }
 
     const parsed = JSON.parse(content);
+    if (isRefine && parsed.content) {
+      return NextResponse.json({ content: parsed.content });
+    }
     return NextResponse.json(parsed);
   } catch (error: unknown) {
     const message =
