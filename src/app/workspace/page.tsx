@@ -2,11 +2,12 @@
 
 import { useState, useCallback, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useWorkspace } from "@/lib/workspace-store";
+import { useWorkspace, getApiKey } from "@/lib/workspace-store";
 import { OutlineItem, IntroData } from "@/lib/types";
 import Sidebar from "@/components/Sidebar";
 import WorkArea from "@/components/WorkArea";
 import IntroArea from "@/components/IntroArea";
+import TagSourcesArea from "@/components/TagSourcesArea";
 import RightPanel from "@/components/RightPanel";
 import { PanelRight, Copy, Download, Check, Loader2 } from "lucide-react";
 import { getSupabaseHeaders } from "@/lib/supabase";
@@ -154,6 +155,7 @@ function WorkspaceContent() {
   const allCompleted =
     introCompleted && data.outline.every((item) => item.finalDraft !== null);
   const isIntroStep = data.currentStep === -1;
+  const isTagSourcesStep = allCompleted && data.currentStep === data.outline.length;
 
   const previousDrafts = [
     data.intro.finalDraft ? `[도입부]\n${data.intro.finalDraft}` : "",
@@ -174,14 +176,19 @@ function WorkspaceContent() {
     .filter(Boolean)
     .join("\n\n---\n\n");
 
+  const displayScript =
+    data.sourceTaggingFinal && data.sourceTaggedDraft
+      ? data.sourceTaggedDraft
+      : fullScript;
+
   const handleCopy = () => {
-    navigator.clipboard.writeText(fullScript);
+    navigator.clipboard.writeText(displayScript);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   const handleDownload = () => {
-    const blob = new Blob([fullScript], { type: "text/plain;charset=utf-8" });
+    const blob = new Blob([displayScript], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -196,6 +203,7 @@ function WorkspaceContent() {
         outline={data.outline}
         currentStep={data.currentStep}
         introCompleted={introCompleted}
+        allCompleted={allCompleted}
         onStepClick={handleStepClick}
         refMaterials={refMaterials}
         refEnabled={refEnabled}
@@ -260,7 +268,36 @@ function WorkspaceContent() {
 
         {/* Main content */}
         <div className="flex-1 flex min-h-0">
-          {isIntroStep ? (
+          {isTagSourcesStep ? (
+            <TagSourcesArea
+              fullScript={fullScript}
+              sourceTaggedDraft={data.sourceTaggedDraft ?? null}
+              sourceTaggingFinal={data.sourceTaggingFinal ?? false}
+              topic={data.topic}
+              onTagSources={async (script) => {
+                const res = await fetch("/api/tag-sources", {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "x-anthropic-api-key": getApiKey("anthropic") ?? "",
+                  },
+                  body: JSON.stringify({ script }),
+                });
+                const json = await res.json();
+                if (!res.ok) throw new Error(json.error);
+                save({ ...data, sourceTaggedDraft: json.taggedScript });
+              }}
+              onUpdateDraft={(draft) =>
+                save({ ...data, sourceTaggedDraft: draft })
+              }
+              onConfirmFinal={() =>
+                save({ ...data, sourceTaggingFinal: true })
+              }
+              onCopy={handleCopy}
+              onDownload={handleDownload}
+              copied={copied}
+            />
+          ) : isIntroStep ? (
             <IntroArea
               intro={data.intro}
               topic={data.topic}

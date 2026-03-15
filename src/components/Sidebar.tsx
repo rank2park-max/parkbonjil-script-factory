@@ -1,7 +1,7 @@
 "use client";
 
 import { OutlineItem } from "@/lib/types";
-import { Check, ChevronRight, Circle, BookOpen, AlertTriangle } from "lucide-react";
+import { Check, ChevronRight, Circle, BookOpen, AlertTriangle, Film } from "lucide-react";
 
 export interface RefMaterial {
   id: string;
@@ -15,6 +15,7 @@ interface SidebarProps {
   outline: OutlineItem[];
   currentStep: number;
   introCompleted: boolean;
+  allCompleted?: boolean;
   onStepClick: (index: number) => void;
   refMaterials?: RefMaterial[];
   refEnabled: boolean;
@@ -27,6 +28,7 @@ export default function Sidebar({
   outline,
   currentStep,
   introCompleted,
+  allCompleted = false,
   onStepClick,
   refMaterials = [],
   refEnabled,
@@ -109,6 +111,29 @@ export default function Sidebar({
             </li>
           );
         })}
+        {/* 영상 소스 태깅 (모든 목차 완료 후에만 활성화) */}
+        {allCompleted && (
+          <li className="pt-2">
+            <div className="border-t border-zinc-800/50 mb-2" />
+            <button
+              onClick={() => onStepClick(outline.length)}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors text-left ${
+                currentStep === outline.length
+                  ? "bg-claude/20 text-claude border border-claude/30"
+                  : "text-zinc-400 hover:bg-zinc-800/50"
+              }`}
+            >
+              <span className="shrink-0">
+                {currentStep === outline.length ? (
+                  <ChevronRight className="w-4 h-4 text-claude" />
+                ) : (
+                  <Film className="w-4 h-4" />
+                )}
+              </span>
+              <span className="truncate">영상 소스 태깅</span>
+            </button>
+          </li>
+        )}
       </ul>
 
       {/* 참고 자료 */}
