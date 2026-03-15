@@ -92,7 +92,7 @@ export function useWorkspace() {
   return { data, loaded, save, updateOutlineItem, setCurrentStep, clearWorkspace };
 }
 
-type ApiProvider = "openai" | "anthropic" | "google" | "xai";
+type ApiProvider = "openai" | "anthropic" | "google" | "xai" | "perplexity";
 
 export function getApiKey(provider: ApiProvider): string | null {
   if (typeof window === "undefined") return null;

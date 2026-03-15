@@ -11,7 +11,20 @@ import {
   Sparkles,
   Loader2,
   AlertCircle,
+  Lightbulb,
+  TrendingUp,
+  BookOpen,
 } from "lucide-react";
+
+interface TopicItem {
+  title: string;
+  reason: string;
+}
+
+interface TopicRecommendations {
+  trending: TopicItem[];
+  explainer: TopicItem[];
+}
 
 interface OutlineEntry {
   title: string;
@@ -62,6 +75,9 @@ export default function HomePage() {
   const [outlineText, setOutlineText] = useState("");
   const [aiResults, setAiResults] = useState<AIResult[] | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [topics, setTopics] = useState<TopicRecommendations | null>(null);
+  const [loadingTopics, setLoadingTopics] = useState(false);
+  const [topicError, setTopicError] = useState<string | null>(null);
   const outlineRef = useRef<HTMLTextAreaElement>(null);
 
   const outlineItems = outlineText
@@ -74,6 +90,36 @@ export default function HomePage() {
     if (!topic.trim() || outlineItems.length === 0) return;
     initializeWorkspace(topic.trim(), duration, outlineItems);
     router.push("/workspace");
+  };
+
+  const handleRecommendTopics = async () => {
+    const apiKey = getApiKey("perplexity");
+    if (!apiKey) {
+      setTopicError("Perplexity API 키를 설정 페이지에서 먼저 입력해주세요.");
+      return;
+    }
+    setLoadingTopics(true);
+    setTopicError(null);
+    setTopics(null);
+
+    try {
+      const res = await fetch("/api/recommend-topics", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-perplexity-api-key": apiKey,
+        },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setTopics(data);
+    } catch (err: unknown) {
+      setTopicError(
+        err instanceof Error ? err.message : "주제 추천에 실패했습니다."
+      );
+    } finally {
+      setLoadingTopics(false);
+    }
   };
 
   const handleGenerateOutline = async () => {
@@ -126,10 +172,25 @@ export default function HomePage() {
           {/* Step 1: Topic + Duration */}
           <div className="max-w-2xl mx-auto bg-zinc-900 border border-zinc-800 rounded-xl p-6 space-y-6">
             <div>
-              <label className="flex items-center gap-2 text-sm font-medium text-zinc-300 mb-2">
-                <Film className="w-4 h-4" />
-                영상 주제
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="flex items-center gap-2 text-sm font-medium text-zinc-300">
+                  <Film className="w-4 h-4" />
+                  영상 주제
+                </label>
+                <button
+                  type="button"
+                  onClick={handleRecommendTopics}
+                  disabled={loadingTopics}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors bg-perplexity/10 text-perplexity border-perplexity/30 hover:bg-perplexity/20 disabled:opacity-50"
+                >
+                  {loadingTopics ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <Lightbulb className="w-3 h-3" />
+                  )}
+                  AI 주제 추천
+                </button>
+              </div>
               <input
                 type="text"
                 value={topic}
@@ -137,6 +198,71 @@ export default function HomePage() {
                 placeholder="예: 인공지능이 바꿀 미래 직업 TOP 10"
                 className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
               />
+
+              {topicError && (
+                <div className="mt-2 flex items-center gap-1.5 text-xs text-red-400">
+                  <AlertCircle className="w-3 h-3" />
+                  {topicError}
+                </div>
+              )}
+
+              {loadingTopics && (
+                <div className="mt-3 flex items-center gap-2 text-sm text-perplexity">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Perplexity가 트렌드를 분석 중입니다...
+                </div>
+              )}
+
+              {topics && !loadingTopics && (
+                <div className="mt-3 space-y-3">
+                  <div>
+                    <h4 className="flex items-center gap-1.5 text-xs font-medium text-zinc-400 mb-1.5">
+                      <TrendingUp className="w-3 h-3 text-perplexity" />
+                      트렌드 주제
+                    </h4>
+                    <div className="space-y-1">
+                      {topics.trending.map((item, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => setTopic(item.title)}
+                          className="w-full text-left px-3 py-2 rounded-lg bg-zinc-800/50 hover:bg-zinc-800 border border-transparent hover:border-perplexity/30 transition-colors group"
+                        >
+                          <span className="text-sm text-zinc-200 group-hover:text-white">
+                            {item.title}
+                          </span>
+                          <p className="text-xs text-zinc-500 mt-0.5">
+                            {item.reason}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="flex items-center gap-1.5 text-xs font-medium text-zinc-400 mb-1.5">
+                      <BookOpen className="w-3 h-3 text-perplexity" />
+                      설명형 주제
+                    </h4>
+                    <div className="space-y-1">
+                      {topics.explainer.map((item, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => setTopic(item.title)}
+                          className="w-full text-left px-3 py-2 rounded-lg bg-zinc-800/50 hover:bg-zinc-800 border border-transparent hover:border-perplexity/30 transition-colors group"
+                        >
+                          <span className="text-sm text-zinc-200 group-hover:text-white">
+                            {item.title}
+                          </span>
+                          <p className="text-xs text-zinc-500 mt-0.5">
+                            {item.reason}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div>

@@ -5,7 +5,7 @@ import { setApiKey, getApiKey } from "@/lib/workspace-store";
 import { Key, Check, Eye, EyeOff } from "lucide-react";
 
 interface KeyField {
-  provider: "openai" | "anthropic" | "google" | "xai";
+  provider: "openai" | "anthropic" | "google" | "xai" | "perplexity";
   label: string;
   color: string;
   focusColor: string;
@@ -45,6 +45,14 @@ const KEY_FIELDS: KeyField[] = [
     focusColor: "focus:border-grok focus:ring-grok",
     placeholder: "xai-...",
     description: "Grok 목차 생성에 사용됩니다 (grok-3)",
+  },
+  {
+    provider: "perplexity",
+    label: "Perplexity API Key",
+    color: "bg-perplexity",
+    focusColor: "focus:border-perplexity focus:ring-perplexity",
+    placeholder: "pplx-...",
+    description: "트렌드 기반 주제 추천에 사용됩니다 (sonar-pro)",
   },
 ];
 
