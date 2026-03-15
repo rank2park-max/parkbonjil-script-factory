@@ -11,7 +11,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { topic, duration, outline, currentOutline, previousDrafts } = await req.json();
+    const { topic, duration, outline, currentOutline, previousDrafts, referenceMaterials } =
+      await req.json();
 
     const openai = new OpenAI({ apiKey });
 
@@ -71,7 +72,11 @@ export async function POST(req: NextRequest) {
   ]
 }`;
 
-    const userMessage = `주제: ${topic}
+    const refBlock = referenceMaterials
+      ? `## 참고 자료\n${referenceMaterials}\n\n`
+      : "";
+
+    const userMessage = `${refBlock}주제: ${topic}
 영상 분량: ${duration}분
 
 전체 목차:

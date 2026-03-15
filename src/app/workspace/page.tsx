@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, Suspense } from "react";
+import { useState, useCallback, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useWorkspace } from "@/lib/workspace-store";
 import { OutlineItem, IntroData } from "@/lib/types";
@@ -9,6 +9,14 @@ import WorkArea from "@/components/WorkArea";
 import IntroArea from "@/components/IntroArea";
 import RightPanel from "@/components/RightPanel";
 import { PanelRight, Copy, Download, Check, Loader2 } from "lucide-react";
+
+interface ReferenceMaterial {
+  id: string;
+  title: string;
+  content: string;
+  char_count: number;
+  created_at: string;
+}
 
 function WorkspaceContent() {
   const router = useRouter();
@@ -19,6 +27,37 @@ function WorkspaceContent() {
     useWorkspace(projectId);
   const [showPanel, setShowPanel] = useState(true);
   const [copied, setCopied] = useState(false);
+
+  const [refMaterials, setRefMaterials] = useState<ReferenceMaterial[]>([]);
+  const [refEnabled, setRefEnabled] = useState(false);
+  const [refSelectedIds, setRefSelectedIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    fetch("/api/reference-materials")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((list: ReferenceMaterial[]) => setRefMaterials(list))
+      .catch(() => setRefMaterials([]));
+  }, []);
+
+  const onRefMaterialToggle = useCallback((id: string) => {
+    setRefSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const referenceMaterialsContent = refEnabled
+    ? (() => {
+        const selected = refMaterials.filter((m) => refSelectedIds.has(m.id));
+        if (selected.length === 0) return "";
+        const text = selected
+          .map((m) => `[${m.title}]\n${m.content}`)
+          .join("\n\n---\n\n");
+        return `## 참고 자료\n\n${text}`;
+      })()
+    : "";
 
   const handleStepClick = useCallback(
     (index: number) => setCurrentStep(index),
@@ -154,6 +193,11 @@ function WorkspaceContent() {
         currentStep={data.currentStep}
         introCompleted={introCompleted}
         onStepClick={handleStepClick}
+        refMaterials={refMaterials}
+        refEnabled={refEnabled}
+        refSelectedIds={refSelectedIds}
+        onRefToggle={setRefEnabled}
+        onRefMaterialToggle={onRefMaterialToggle}
       />
 
       <div className="flex-1 flex flex-col min-w-0">
@@ -220,6 +264,7 @@ function WorkspaceContent() {
               allOutlineTitles={data.outline.map((i) => i.title)}
               onUpdate={handleUpdateIntro}
               onConfirm={handleConfirmIntro}
+              referenceMaterials={referenceMaterialsContent}
             />
           ) : (
             <WorkArea
@@ -231,6 +276,7 @@ function WorkspaceContent() {
               previousDrafts={previousDrafts}
               onUpdate={handleUpdateItem}
               onConfirm={handleConfirmStep}
+              referenceMaterials={referenceMaterialsContent}
             />
           )}
           {showPanel && (

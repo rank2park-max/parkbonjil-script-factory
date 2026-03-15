@@ -17,6 +17,7 @@ interface IntroAreaProps {
   topic: string;
   duration: number;
   allOutlineTitles: string[];
+  referenceMaterials?: string;
   onUpdate: (updates: Partial<IntroData>) => void;
   onConfirm: (finalDraft: string) => void;
 }
@@ -26,6 +27,7 @@ export default function IntroArea({
   topic,
   duration,
   allOutlineTitles,
+  referenceMaterials,
   onUpdate,
   onConfirm,
 }: IntroAreaProps) {
@@ -53,6 +55,7 @@ export default function IntroArea({
           topic,
           duration,
           outline: allOutlineTitles,
+          referenceMaterials: referenceMaterials || undefined,
         }),
       });
 

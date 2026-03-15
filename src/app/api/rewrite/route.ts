@@ -11,8 +11,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { topic, duration, outline, currentOutline, selectedDraft, previousDrafts } =
-      await req.json();
+    const {
+      topic,
+      duration,
+      outline,
+      currentOutline,
+      selectedDraft,
+      previousDrafts,
+      referenceMaterials,
+    } = await req.json();
 
     const anthropic = new Anthropic({ apiKey });
 
@@ -43,7 +50,11 @@ GPT가 작성한 초안을 받아서 박본질 스타일로 완전히 리라이�
 
 리라이팅 결과와 함께 변경 사항 요약을 출력하라.`;
 
-    const userMessage = `주제: ${topic}
+    const refBlock = referenceMaterials
+      ? `## 참고 자료\n${referenceMaterials}\n\n`
+      : "";
+
+    const userMessage = `${refBlock}주제: ${topic}
 영상 분량: ${duration}분
 
 전체 목차:

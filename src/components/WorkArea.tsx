@@ -19,6 +19,7 @@ interface WorkAreaProps {
   duration: number;
   allOutlineTitles: string[];
   previousDrafts: string;
+  referenceMaterials?: string;
   onUpdate: (updates: Partial<OutlineItem>) => void;
   onConfirm: (finalDraft: string) => void;
 }
@@ -30,6 +31,7 @@ export default function WorkArea({
   duration,
   allOutlineTitles,
   previousDrafts,
+  referenceMaterials = "",
   onUpdate,
   onConfirm,
 }: WorkAreaProps) {
@@ -61,6 +63,7 @@ export default function WorkArea({
           outline: allOutlineTitles,
           currentOutline: item.title,
           previousDrafts,
+          referenceMaterials: referenceMaterials || undefined,
         }),
       });
 
@@ -103,6 +106,7 @@ export default function WorkArea({
           currentOutline: item.title,
           selectedDraft: item.editedDraft,
           previousDrafts,
+          referenceMaterials: referenceMaterials || undefined,
         }),
       });
 

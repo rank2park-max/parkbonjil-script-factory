@@ -58,3 +58,17 @@ CREATE TRIGGER projects_updated_at
 CREATE INDEX idx_sections_project_id ON sections(project_id);
 CREATE INDEX idx_projects_status ON projects(status);
 CREATE INDEX idx_projects_updated_at ON projects(updated_at DESC);
+
+-- reference_materials 테이블 (참고 자료)
+CREATE TABLE reference_materials (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  title text NOT NULL,
+  content text NOT NULL,
+  char_count integer NOT NULL DEFAULT 0,
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE reference_materials ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow all on reference_materials" ON reference_materials
+  FOR ALL USING (true) WITH CHECK (true);

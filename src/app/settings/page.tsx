@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { setApiKey, getApiKey } from "@/lib/workspace-store";
 import { isSupabaseConfigured, resetSupabaseClient } from "@/lib/supabase";
-import { Key, Check, Eye, EyeOff, Database } from "lucide-react";
+import { Key, Check, Eye, EyeOff, Database, BookOpen, Upload, Trash2, Loader2 } from "lucide-react";
 
 interface KeyField {
   provider: "openai" | "anthropic" | "google" | "xai" | "perplexity";
@@ -254,6 +254,243 @@ export default function SettingsPage() {
             NEXT_PUBLIC_SUPABASE_ANON_KEY)를 사용하세요.
           </p>
         </div>
+
+        {/* 참고 자료 관리 */}
+        <ReferenceMaterialsSection sbConfigured={sbConfigured} />
+      </div>
+    </div>
+  );
+}
+
+interface RefMaterial {
+  id: string;
+  title: string;
+  content: string;
+  char_count: number;
+  created_at: string;
+}
+
+function ReferenceMaterialsSection({ sbConfigured }: { sbConfigured: boolean }) {
+  const [materials, setMaterials] = useState<RefMaterial[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [textTitle, setTextTitle] = useState("");
+  const [textContent, setTextContent] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const fetchMaterials = useCallback(async () => {
+    if (!sbConfigured) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/reference-materials");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "로드 실패");
+      setMaterials(Array.isArray(data) ? data : []);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "참고 자료를 불러올 수 없습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }, [sbConfigured]);
+
+  useEffect(() => {
+    fetchMaterials();
+  }, [fetchMaterials]);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !sbConfigured) return;
+    setUploading(true);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/reference-materials", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "업로드 실패");
+      setMaterials((prev) => [data, ...prev]);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "업로드 실패");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleTextSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!textTitle.trim() || !textContent.trim() || !sbConfigured) return;
+    setUploading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/reference-materials", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: textTitle.trim(), content: textContent.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "저장 실패");
+      setMaterials((prev) => [data, ...prev]);
+      setTextTitle("");
+      setTextContent("");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "저장 실패");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!sbConfigured) return;
+    try {
+      const res = await fetch(`/api/reference-materials?id=${id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "삭제 실패");
+      setMaterials((prev) => prev.filter((m) => m.id !== id));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "삭제 실패");
+    }
+  };
+
+  const formatDate = (s: string) => {
+    try {
+      return new Date(s).toLocaleDateString("ko-KR", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      });
+    } catch {
+      return "";
+    }
+  };
+
+  if (!sbConfigured) {
+    return (
+      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+        <h2 className="text-lg font-semibold text-zinc-200 flex items-center gap-2 mb-2">
+          <BookOpen className="w-5 h-5 text-amber-400" />
+          참고 자료 관리
+        </h2>
+        <p className="text-sm text-zinc-500">Supabase를 연결하면 참고 자료를 업로드할 수 있습니다.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 space-y-4">
+      <h2 className="text-lg font-semibold text-zinc-200 flex items-center gap-2">
+        <BookOpen className="w-5 h-5 text-amber-400" />
+        참고 자료 관리
+      </h2>
+      <p className="text-xs text-zinc-500">
+        업로드된 자료는 초안 생성·리라이팅 시 컨텍스트로 사용됩니다. .txt, .md, .pdf, .docx 지원.
+      </p>
+
+      {/* 파일 업로드 */}
+      <div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".txt,.md,.pdf,.docx"
+          onChange={handleFileUpload}
+          disabled={uploading}
+          className="hidden"
+        />
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+          className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg text-sm text-zinc-200 transition-colors disabled:opacity-50"
+        >
+          {uploading ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Upload className="w-4 h-4" />
+          )}
+          파일 업로드
+        </button>
+      </div>
+
+      {/* 텍스트 직접 입력 */}
+      <form onSubmit={handleTextSubmit} className="space-y-3">
+        <div>
+          <label className="text-sm font-medium text-zinc-300 mb-1 block">제목</label>
+          <input
+            type="text"
+            value={textTitle}
+            onChange={(e) => setTextTitle(e.target.value)}
+            placeholder="자료 제목"
+            className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 text-sm"
+          />
+        </div>
+        <div>
+          <label className="text-sm font-medium text-zinc-300 mb-1 block">내용</label>
+          <textarea
+            value={textContent}
+            onChange={(e) => setTextContent(e.target.value)}
+            placeholder="참고할 텍스트를 입력하세요"
+            rows={4}
+            className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 text-sm resize-none"
+          />
+        </div>
+        <button
+          type="submit"
+          disabled={uploading || !textTitle.trim() || !textContent.trim()}
+          className="px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white text-sm font-medium rounded-lg transition-colors"
+        >
+          텍스트 추가
+        </button>
+      </form>
+
+      {error && (
+        <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-sm text-red-300">
+          {error}
+        </div>
+      )}
+
+      {/* 자료 목록 */}
+      <div>
+        <h3 className="text-sm font-medium text-zinc-400 mb-2">등록된 자료</h3>
+        {loading ? (
+          <div className="flex items-center gap-2 text-zinc-500 py-4">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            로딩 중...
+          </div>
+        ) : materials.length === 0 ? (
+          <p className="text-sm text-zinc-500 py-4">등록된 참고 자료가 없습니다.</p>
+        ) : (
+          <ul className="space-y-2 max-h-64 overflow-y-auto">
+            {materials.map((m) => (
+              <li
+                key={m.id}
+                className="flex items-center justify-between gap-2 py-2 px-3 bg-zinc-800/50 rounded-lg"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm text-zinc-200 truncate">{m.title}</p>
+                  <p className="text-xs text-zinc-500">{formatDate(m.created_at)} · {m.char_count.toLocaleString()}자</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleDelete(m.id)}
+                  className="p-1.5 text-zinc-500 hover:text-red-400 transition-colors shrink-0"
+                  title="삭제"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );
