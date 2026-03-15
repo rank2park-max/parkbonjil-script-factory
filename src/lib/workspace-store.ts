@@ -1,7 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { WorkspaceData, OutlineItem, IntroData } from "./types";
+import {
+  createSupabaseProject,
+  loadSupabaseProject,
+  saveSupabaseProject,
+} from "./supabase-store";
 
 const EMPTY_INTRO: IntroData = {
   drafts: [],
@@ -24,11 +29,11 @@ function createEmptyOutlineItem(title: string): OutlineItem {
   };
 }
 
-export function initializeWorkspace(
+export async function initializeWorkspace(
   topic: string,
   duration: number,
   outlineTitles: string[]
-): WorkspaceData {
+): Promise<string | null> {
   const data: WorkspaceData = {
     topic,
     duration,
@@ -37,33 +42,73 @@ export function initializeWorkspace(
     currentStep: -1,
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  return data;
+
+  const projectId = await createSupabaseProject(topic, duration, outlineTitles);
+  return projectId;
 }
 
-export function useWorkspace() {
+export function useWorkspace(projectId?: string | null) {
   const [data, setData] = useState<WorkspaceData | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const projectIdRef = useRef(projectId);
+  projectIdRef.current = projectId;
 
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (!parsed.intro) {
-          parsed.intro = { ...EMPTY_INTRO };
-          parsed.currentStep = -1;
+    let cancelled = false;
+
+    async function loadData() {
+      if (projectId) {
+        const supabaseData = await loadSupabaseProject(projectId);
+        if (!cancelled && supabaseData) {
+          setData(supabaseData);
+          setLoaded(true);
+          return;
         }
-        setData(parsed);
-      } catch {
-        setData(null);
+      }
+
+      if (!cancelled) {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            if (!parsed.intro) {
+              parsed.intro = { ...EMPTY_INTRO };
+              parsed.currentStep = -1;
+            }
+            setData(parsed);
+          } catch {
+            setData(null);
+          }
+        }
+        setLoaded(true);
       }
     }
-    setLoaded(true);
+
+    loadData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId]);
+
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
   }, []);
 
   const save = useCallback((newData: WorkspaceData) => {
     setData(newData);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(newData));
+
+    const pid = projectIdRef.current;
+    if (pid) {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(() => {
+        saveSupabaseProject(pid, newData);
+      }, 1500);
+    }
   }, []);
 
   const updateOutlineItem = useCallback(

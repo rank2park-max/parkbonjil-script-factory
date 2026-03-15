@@ -15,6 +15,7 @@ import {
   TrendingUp,
   BookOpen,
 } from "lucide-react";
+import { isSupabaseConfigured } from "@/lib/supabase";
 
 interface TopicItem {
   title: string;
@@ -85,11 +86,27 @@ export default function HomePage() {
     .map((line) => line.replace(/^\d+[.)]\s*/, "").trim())
     .filter(Boolean);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!topic.trim() || outlineItems.length === 0) return;
-    initializeWorkspace(topic.trim(), duration, outlineItems);
-    router.push("/workspace");
+    if (!topic.trim() || outlineItems.length === 0 || submitting) return;
+
+    setSubmitting(true);
+    try {
+      const projectId = await initializeWorkspace(
+        topic.trim(),
+        duration,
+        outlineItems
+      );
+      if (projectId) {
+        router.push(`/workspace?id=${projectId}`);
+      } else {
+        router.push("/workspace");
+      }
+    } catch {
+      router.push("/workspace");
+    }
   };
 
   const handleRecommendTopics = async () => {
@@ -392,12 +409,26 @@ export default function HomePage() {
 
             <button
               type="submit"
-              disabled={!topic.trim() || outlineItems.length === 0}
+              disabled={!topic.trim() || outlineItems.length === 0 || submitting}
               className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
             >
-              대본 작성 시작
-              <ArrowRight className="w-4 h-4" />
+              {submitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  프로젝트 생성 중...
+                </>
+              ) : (
+                <>
+                  대본 작성 시작
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
             </button>
+            {isSupabaseConfigured() && (
+              <p className="text-xs text-emerald-500/70 text-center mt-2">
+                Supabase에 자동 저장됩니다
+              </p>
+            )}
           </div>
         </form>
       </div>

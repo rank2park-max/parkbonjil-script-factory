@@ -1,18 +1,22 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useCallback, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useWorkspace } from "@/lib/workspace-store";
 import { OutlineItem, IntroData } from "@/lib/types";
 import Sidebar from "@/components/Sidebar";
 import WorkArea from "@/components/WorkArea";
 import IntroArea from "@/components/IntroArea";
 import RightPanel from "@/components/RightPanel";
-import { PanelRight, Copy, Download, Check } from "lucide-react";
+import { PanelRight, Copy, Download, Check, Loader2 } from "lucide-react";
 
-export default function WorkspacePage() {
+function WorkspaceContent() {
   const router = useRouter();
-  const { data, loaded, save, updateOutlineItem, setCurrentStep } = useWorkspace();
+  const searchParams = useSearchParams();
+  const projectId = searchParams.get("id");
+
+  const { data, loaded, save, updateOutlineItem, setCurrentStep } =
+    useWorkspace(projectId);
   const [showPanel, setShowPanel] = useState(true);
   const [copied, setCopied] = useState(false);
 
@@ -80,7 +84,10 @@ export default function WorkspacePage() {
   if (!loaded) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-zinc-500">로딩 중...</div>
+        <div className="flex items-center gap-2 text-zinc-500">
+          <Loader2 className="w-5 h-5 animate-spin" />
+          프로젝트 불러오는 중...
+        </div>
       </div>
     );
   }
@@ -101,7 +108,8 @@ export default function WorkspacePage() {
 
   const introCompleted = data.intro.finalDraft !== null;
   const outlineCompletedCount = data.outline.filter((i) => i.finalDraft).length;
-  const allCompleted = introCompleted && data.outline.every((item) => item.finalDraft !== null);
+  const allCompleted =
+    introCompleted && data.outline.every((item) => item.finalDraft !== null);
   const isIntroStep = data.currentStep === -1;
 
   const previousDrafts = [
@@ -160,6 +168,11 @@ export default function WorkspacePage() {
               {(introCompleted ? 1 : 0) + outlineCompletedCount}/
               {1 + data.outline.length} 완료
             </span>
+            {projectId && (
+              <span className="ml-2 text-emerald-500/60 text-xs">
+                자동 저장
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-2">
             {allCompleted && (
@@ -231,5 +244,22 @@ export default function WorkspacePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function WorkspacePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="flex items-center gap-2 text-zinc-500">
+            <Loader2 className="w-5 h-5 animate-spin" />
+            로딩 중...
+          </div>
+        </div>
+      }
+    >
+      <WorkspaceContent />
+    </Suspense>
   );
 }
