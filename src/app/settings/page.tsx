@@ -29,7 +29,7 @@ const KEY_FIELDS: KeyField[] = [
     color: "bg-claude",
     focusColor: "focus:border-claude focus:ring-claude",
     placeholder: "sk-ant-...",
-    description: "Claude 리라이팅 + 목차 생성에 사용됩니다 (claude-opus-4-6)",
+    description: "Claude 리라이팅 + 목차 생성에 사용됩니다 (claude-sonnet-4-20250514)",
   },
   {
     provider: "google",

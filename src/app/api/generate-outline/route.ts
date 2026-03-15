@@ -42,7 +42,7 @@ async function callGPT(apiKey: string, userMessage: string) {
 async function callClaude(apiKey: string, userMessage: string) {
   const anthropic = new Anthropic({ apiKey });
   const response = await anthropic.messages.create({
-    model: "claude-opus-4-6",
+    model: "claude-sonnet-4-20250514",
     max_tokens: 4096,
     system:
       SYSTEM_PROMPT +

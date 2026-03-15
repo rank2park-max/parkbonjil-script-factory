@@ -57,7 +57,7 @@ ${selectedDraft}
 ${previousDrafts ? `이전까지 확정된 대본:\n${previousDrafts}` : ""}`;
 
     const response = await anthropic.messages.create({
-      model: "claude-opus-4-6",
+      model: "claude-sonnet-4-20250514",
       max_tokens: 4096,
       system: systemPrompt,
       messages: [{ role: "user", content: userMessage }],
