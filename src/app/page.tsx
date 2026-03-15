@@ -27,6 +27,13 @@ interface TopicRecommendations {
   explainer: TopicItem[];
 }
 
+interface TopicAIResult {
+  ai: string;
+  status: "success" | "error";
+  data?: TopicRecommendations;
+  error?: string;
+}
+
 interface OutlineEntry {
   title: string;
   question: string;
@@ -67,6 +74,11 @@ const AI_COLORS: Record<string, { dot: string; badge: string; border: string }> 
     badge: "bg-grok/20 text-grok border-grok/30",
     border: "border-grok/40",
   },
+  Perplexity: {
+    dot: "bg-perplexity",
+    badge: "bg-perplexity/20 text-perplexity border-perplexity/30",
+    border: "border-perplexity/40",
+  },
 };
 
 export default function HomePage() {
@@ -76,7 +88,7 @@ export default function HomePage() {
   const [outlineText, setOutlineText] = useState("");
   const [aiResults, setAiResults] = useState<AIResult[] | null>(null);
   const [generating, setGenerating] = useState(false);
-  const [topics, setTopics] = useState<TopicRecommendations | null>(null);
+  const [topicResults, setTopicResults] = useState<TopicAIResult[] | null>(null);
   const [loadingTopics, setLoadingTopics] = useState(false);
   const [topicError, setTopicError] = useState<string | null>(null);
   const outlineRef = useRef<HTMLTextAreaElement>(null);
@@ -110,26 +122,25 @@ export default function HomePage() {
   };
 
   const handleRecommendTopics = async () => {
-    const apiKey = getApiKey("perplexity");
-    if (!apiKey) {
-      setTopicError("Perplexity API 키를 설정 페이지에서 먼저 입력해주세요.");
-      return;
-    }
     setLoadingTopics(true);
     setTopicError(null);
-    setTopics(null);
+    setTopicResults(null);
 
     try {
       const res = await fetch("/api/recommend-topics", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-perplexity-api-key": apiKey,
+          "x-openai-api-key": getApiKey("openai") || "",
+          "x-anthropic-api-key": getApiKey("anthropic") || "",
+          "x-google-api-key": getApiKey("google") || "",
+          "x-xai-api-key": getApiKey("xai") || "",
+          "x-perplexity-api-key": getApiKey("perplexity") || "",
         },
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      setTopics(data);
+      setTopicResults(data.results);
     } catch (err: unknown) {
       setTopicError(
         err instanceof Error ? err.message : "주제 추천에 실패했습니다."
@@ -198,7 +209,7 @@ export default function HomePage() {
                   type="button"
                   onClick={handleRecommendTopics}
                   disabled={loadingTopics}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors bg-perplexity/10 text-perplexity border-perplexity/30 hover:bg-perplexity/20 disabled:opacity-50"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors bg-indigo-500/10 text-indigo-400 border-indigo-500/30 hover:bg-indigo-500/20 disabled:opacity-50"
                 >
                   {loadingTopics ? (
                     <Loader2 className="w-3 h-3 animate-spin" />
@@ -224,64 +235,61 @@ export default function HomePage() {
               )}
 
               {loadingTopics && (
-                <div className="mt-3 flex items-center gap-2 text-sm text-perplexity">
+                <div className="mt-3 flex items-center gap-2 text-sm text-indigo-400">
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Perplexity가 트렌드를 분석 중입니다...
-                </div>
-              )}
-
-              {topics && !loadingTopics && (
-                <div className="mt-3 space-y-3">
-                  <div>
-                    <h4 className="flex items-center gap-1.5 text-xs font-medium text-zinc-400 mb-1.5">
-                      <TrendingUp className="w-3 h-3 text-perplexity" />
-                      트렌드 주제
-                    </h4>
-                    <div className="space-y-1">
-                      {topics.trending.map((item, i) => (
-                        <button
-                          key={i}
-                          type="button"
-                          onClick={() => setTopic(item.title)}
-                          className="w-full text-left px-3 py-2 rounded-lg bg-zinc-800/50 hover:bg-zinc-800 border border-transparent hover:border-perplexity/30 transition-colors group"
-                        >
-                          <span className="text-sm text-zinc-200 group-hover:text-white">
-                            {item.title}
-                          </span>
-                          <p className="text-xs text-zinc-500 mt-0.5">
-                            {item.reason}
-                          </p>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <h4 className="flex items-center gap-1.5 text-xs font-medium text-zinc-400 mb-1.5">
-                      <BookOpen className="w-3 h-3 text-perplexity" />
-                      설명형 주제
-                    </h4>
-                    <div className="space-y-1">
-                      {topics.explainer.map((item, i) => (
-                        <button
-                          key={i}
-                          type="button"
-                          onClick={() => setTopic(item.title)}
-                          className="w-full text-left px-3 py-2 rounded-lg bg-zinc-800/50 hover:bg-zinc-800 border border-transparent hover:border-perplexity/30 transition-colors group"
-                        >
-                          <span className="text-sm text-zinc-200 group-hover:text-white">
-                            {item.title}
-                          </span>
-                          <p className="text-xs text-zinc-500 mt-0.5">
-                            {item.reason}
-                          </p>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                  5개 AI가 주제를 추천 중입니다...
                 </div>
               )}
             </div>
+          </div>
 
+          {/* Topic AI Results */}
+          {loadingTopics && (
+            <div className="max-w-5xl mx-auto mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {["GPT", "Claude", "Gemini", "Grok", "Perplexity"].map((ai) => {
+                const colors = AI_COLORS[ai];
+                return (
+                  <div
+                    key={ai}
+                    className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 animate-pulse"
+                  >
+                    <span
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${colors.badge}`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full ${colors.dot}`} />
+                      {ai}
+                    </span>
+                    <div className="mt-3 space-y-2">
+                      <div className="h-3 bg-zinc-800 rounded w-3/4" />
+                      <div className="h-3 bg-zinc-800 rounded w-1/2" />
+                      <div className="h-3 bg-zinc-800 rounded w-2/3" />
+                      <div className="h-3 bg-zinc-800 rounded w-5/6" />
+                      <div className="h-3 bg-zinc-800 rounded w-1/2" />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {topicResults && !loadingTopics && topicResults.length > 0 && (
+            <div className="max-w-5xl mx-auto mt-4">
+              <h3 className="text-sm font-medium text-zinc-400 mb-3">
+                AI 추천 주제 — 클릭하면 영상 주제에 자동 입력됩니다
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {topicResults.map((result) => (
+                  <AITopicCard
+                    key={result.ai}
+                    result={result}
+                    onSelectTopic={(title) => setTopic(title)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="max-w-2xl mx-auto mt-4 bg-zinc-900 border border-zinc-800 rounded-xl p-6 space-y-6">
             <div>
               <label className="flex items-center gap-2 text-sm font-medium text-zinc-300 mb-2">
                 <Clock className="w-4 h-4" />
@@ -520,6 +528,97 @@ function AIOutlineCard({
       >
         이 목차 선택
       </button>
+    </div>
+  );
+}
+
+function AITopicCard({
+  result,
+  onSelectTopic,
+}: {
+  result: TopicAIResult;
+  onSelectTopic: (title: string) => void;
+}) {
+  const colors = AI_COLORS[result.ai] || AI_COLORS.GPT;
+
+  if (result.status === "error") {
+    return (
+      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
+        <span
+          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${colors.badge}`}
+        >
+          <span className={`w-1.5 h-1.5 rounded-full ${colors.dot}`} />
+          {result.ai}
+        </span>
+        <div className="flex items-center gap-2 mt-4 text-zinc-500">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span className="text-xs">{result.error}</span>
+        </div>
+      </div>
+    );
+  }
+
+  const data = result.data!;
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 hover:border-zinc-700 transition-colors">
+      <span
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${colors.badge}`}
+      >
+        <span className={`w-1.5 h-1.5 rounded-full ${colors.dot}`} />
+        {result.ai}
+        {result.ai === "Perplexity" && (
+          <span className="text-[10px] opacity-60 ml-0.5">실시간</span>
+        )}
+      </span>
+
+      <div className="mt-3">
+        <h4 className="flex items-center gap-1.5 text-[11px] font-medium text-zinc-500 mb-1.5">
+          <TrendingUp className="w-3 h-3" />
+          트렌드 주제
+        </h4>
+        <div className="space-y-0.5">
+          {data.trending?.map((item, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => onSelectTopic(item.title)}
+              className="w-full text-left px-2 py-1.5 rounded-md hover:bg-zinc-800 transition-colors group"
+            >
+              <span className="text-xs text-zinc-300 group-hover:text-white">
+                {item.title}
+              </span>
+              <p className="text-[10px] text-zinc-600 mt-0.5 leading-tight">
+                {item.reason}
+              </p>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-2">
+        <h4 className="flex items-center gap-1.5 text-[11px] font-medium text-zinc-500 mb-1.5">
+          <BookOpen className="w-3 h-3" />
+          설명형 주제
+        </h4>
+        <div className="space-y-0.5">
+          {data.explainer?.map((item, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => onSelectTopic(item.title)}
+              className="w-full text-left px-2 py-1.5 rounded-md hover:bg-zinc-800 transition-colors group"
+            >
+              <span className="text-xs text-zinc-300 group-hover:text-white">
+                {item.title}
+              </span>
+              <p className="text-[10px] text-zinc-600 mt-0.5 leading-tight">
+                {item.reason}
+              </p>
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
