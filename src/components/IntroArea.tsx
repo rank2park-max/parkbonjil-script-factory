@@ -38,7 +38,7 @@ export default function IntroArea({
   const hasSelection = intro.selectedDraftIndex !== null;
   const isCompleted = intro.finalDraft !== null;
 
-  const handleGenerate = async () => {
+  const handleGenerate = async (baseDraft?: string) => {
     setGenerating(true);
     setError(null);
     try {
@@ -56,18 +56,28 @@ export default function IntroArea({
           duration,
           outline: allOutlineTitles,
           referenceMaterials: referenceMaterials || undefined,
+          baseDraft: baseDraft || undefined,
         }),
       });
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
 
-      onUpdate({ drafts: data.drafts });
+      onUpdate({
+        drafts: data.drafts,
+        selectedDraftIndex: null,
+        editedDraft: "",
+      });
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "오류가 발생했습니다.");
     } finally {
       setGenerating(false);
     }
+  };
+
+  const handleRegenerate = () => {
+    if (!intro.editedDraft.trim()) return;
+    handleGenerate(intro.editedDraft);
   };
 
   const handleSelectDraft = (index: number) => {
@@ -136,7 +146,7 @@ export default function IntroArea({
               충격형 / 스토리형 / 데이터형 / 질문형 / 비유형
             </p>
             <button
-              onClick={handleGenerate}
+              onClick={() => handleGenerate()}
               className="px-6 py-3 bg-gpt hover:bg-gpt-light text-white font-medium rounded-lg transition-colors flex items-center gap-2"
             >
               <Sparkles className="w-4 h-4" />
@@ -145,8 +155,8 @@ export default function IntroArea({
           </div>
         )}
 
-        {/* Loading */}
-        {generating && (
+        {/* Loading - 전체 화면 로딩 (Phase 1에서만) */}
+        {generating && !hasSelection && (
           <div className="flex flex-col items-center justify-center py-16">
             <Loader2 className="w-8 h-8 text-gpt animate-spin mb-4" />
             <p className="text-zinc-400">GPT가 도입부를 작성 중입니다...</p>
@@ -196,13 +206,25 @@ export default function IntroArea({
               onChange={(e) => onUpdate({ editedDraft: e.target.value })}
               className="w-full min-h-[200px] px-4 py-3 bg-zinc-900 border border-zinc-700 rounded-xl text-sm text-zinc-200 leading-relaxed resize-y focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
             />
-            <div className="flex items-center gap-3 mt-4">
+            <div className="flex items-center gap-3 mt-4 flex-wrap">
               <button
                 onClick={handleConfirm}
                 className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-lg transition-colors flex items-center gap-2"
               >
                 <CheckCircle className="w-4 h-4" />
                 도입부 확정
+              </button>
+              <button
+                onClick={() => handleRegenerate()}
+                disabled={generating}
+                className="px-5 py-2.5 bg-gpt hover:bg-gpt-light disabled:opacity-50 text-white font-medium rounded-lg transition-colors flex items-center gap-2"
+              >
+                {generating ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-4 h-4" />
+                )}
+                이 내용으로 GPT 다시 돌리기
               </button>
               <button
                 onClick={() =>

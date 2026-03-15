@@ -44,7 +44,7 @@ export default function WorkArea({
   const hasRewrite = item.rewrittenDraft !== null;
   const isCompleted = item.finalDraft !== null;
 
-  const handleGenerate = async () => {
+  const handleGenerate = async (baseDraft?: string) => {
     setGenerating(true);
     setError(null);
     try {
@@ -64,18 +64,28 @@ export default function WorkArea({
           currentOutline: item.title,
           previousDrafts,
           referenceMaterials: referenceMaterials || undefined,
+          baseDraft: baseDraft || undefined,
         }),
       });
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
 
-      onUpdate({ drafts: data.drafts });
+      onUpdate({
+        drafts: data.drafts,
+        selectedDraftIndex: null,
+        editedDraft: "",
+      });
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "오류가 발생했습니다.");
     } finally {
       setGenerating(false);
     }
+  };
+
+  const handleRegenerateDraft = () => {
+    if (!item.editedDraft.trim()) return;
+    handleGenerate(item.editedDraft);
   };
 
   const handleSelectDraft = (index: number) => {
@@ -85,7 +95,8 @@ export default function WorkArea({
     });
   };
 
-  const handleRewrite = async () => {
+  const handleRewrite = async (overrideDraft?: string) => {
+    const draftToRewrite = overrideDraft ?? item.editedDraft;
     setRewriting(true);
     setError(null);
     try {
@@ -104,7 +115,7 @@ export default function WorkArea({
           duration,
           outline: allOutlineTitles,
           currentOutline: item.title,
-          selectedDraft: item.editedDraft,
+          selectedDraft: draftToRewrite,
           previousDrafts,
           referenceMaterials: referenceMaterials || undefined,
         }),
@@ -181,7 +192,7 @@ export default function WorkArea({
               GPT가 3가지 스타일의 초안을 생성합니다.
             </p>
             <button
-              onClick={handleGenerate}
+              onClick={() => handleGenerate()}
               className="px-6 py-3 bg-gpt hover:bg-gpt-light text-white font-medium rounded-lg transition-colors flex items-center gap-2"
             >
               <Sparkles className="w-4 h-4" />
@@ -240,13 +251,25 @@ export default function WorkArea({
               onChange={(e) => onUpdate({ editedDraft: e.target.value })}
               className="w-full min-h-[300px] px-4 py-3 bg-zinc-900 border border-zinc-700 rounded-xl text-sm text-zinc-200 leading-relaxed resize-y focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
             />
-            <div className="flex items-center gap-3 mt-4">
+            <div className="flex items-center gap-3 mt-4 flex-wrap">
               <button
-                onClick={handleRewrite}
+                onClick={handleRegenerateDraft}
+                disabled={generating || !item.editedDraft.trim()}
+                className="px-5 py-2.5 bg-gpt hover:bg-gpt-light disabled:opacity-50 text-white font-medium rounded-lg transition-colors flex items-center gap-2"
+              >
+                {generating ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-4 h-4" />
+                )}
+                이 내용으로 다시 생성
+              </button>
+              <button
+                onClick={() => handleRewrite()}
                 className="px-5 py-2.5 bg-claude hover:bg-claude-light text-white font-medium rounded-lg transition-colors flex items-center gap-2"
               >
                 <Wand2 className="w-4 h-4" />
-                리라이팅 (Claude)
+                리라이팅으로 넘어가기
               </button>
               <button
                 onClick={handleConfirm}
@@ -296,12 +319,16 @@ export default function WorkArea({
                 이 목차 확정
               </button>
               <button
-                onClick={() =>
-                  onUpdate({ rewrittenDraft: null, editedRewrite: "" })
-                }
-                className="px-4 py-2.5 text-sm text-zinc-400 hover:text-white transition-colors"
+                onClick={() => handleRewrite(item.editedRewrite)}
+                disabled={rewriting || !item.editedRewrite.trim()}
+                className="px-5 py-2.5 bg-claude hover:bg-claude-light disabled:opacity-50 text-white font-medium rounded-lg transition-colors flex items-center gap-2"
               >
-                리라이팅 다시 하기
+                {rewriting ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Wand2 className="w-4 h-4" />
+                )}
+                다시 리라이팅
               </button>
             </div>
           </div>

@@ -11,7 +11,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { topic, duration, outline, referenceMaterials } = await req.json();
+    const { topic, duration, outline, referenceMaterials, baseDraft } =
+      await req.json();
 
     const openai = new OpenAI({ apiKey });
 
@@ -21,8 +22,9 @@ export async function POST(req: NextRequest) {
 ## 도입부 규칙
 - 절대 "안녕하세요"로 시작 금지
 - 첫 문장에서 통념 부수기 or 강렬한 상황 제시
-- 150~300자 (30초~1분 분량)
+- 500~800자 (1분30초~2분30초 분량)
 - 끝에 본론 연결 브릿지 문장 필수
+- 각 도입부는 충분히 길고 구체적으로 써라. 짧게 요약하지 말고, 시청자가 빠져들 수 있도록 상세하게 전개하라.
 
 ## 말투
 - 반말 기반 친근한 존댓말 ("~거든요" "~라는 거예요" "~인 거죠")
@@ -54,11 +56,20 @@ export async function POST(req: NextRequest) {
       ? `## 참고 자료\n${referenceMaterials}\n\n`
       : "";
 
-    const userMessage = `${refBlock}주제: ${topic}
+    const baseInfo = `주제: ${topic}
 영상 분량: ${duration}분
 
 전체 목차:
 ${outline.map((item: string, i: number) => `${i + 1}. ${item}`).join("\n")}`;
+
+    const userMessage = baseDraft
+      ? `${refBlock}${baseInfo}
+
+아래 도입부를 기반으로 더 발전시켜서 5개 버전을 다시 만들어줘. 각 버전은 서로 다른 스타일(충격형/스토리형/데이터형/질문형/비유형)로 작성하고, 5개는 서로 겹치는 표현이 없어야 한다.
+
+[기존 도입부]
+${baseDraft}`
+      : `${refBlock}${baseInfo}`;
 
     const response = await openai.chat.completions.create({
       model: "gpt-5.4",

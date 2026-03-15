@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { topic, duration, outline, currentOutline, previousDrafts, referenceMaterials } =
+    const { topic, duration, outline, currentOutline, previousDrafts, referenceMaterials, baseDraft } =
       await req.json();
 
     const openai = new OpenAI({ apiKey });
@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
       ? `## 참고 자료\n${referenceMaterials}\n\n`
       : "";
 
-    const userMessage = `${refBlock}주제: ${topic}
+    const baseInfo = `${refBlock}주제: ${topic}
 영상 분량: ${duration}분
 
 전체 목차:
@@ -85,6 +85,15 @@ ${outline.map((item: string, i: number) => `${i + 1}. ${item}`).join("\n")}
 현재 작성할 목차: ${currentOutline}
 
 ${previousDrafts ? `이전까지 확정된 대본:\n${previousDrafts}` : "첫 번째 목차입니다."}`;
+
+    const userMessage = baseDraft
+      ? `${baseInfo}
+
+아래 초안을 기반으로 3가지 스타일(비유 중심/논리 전개/질문-답변)로 각각 발전시켜서 새 초안 3개를 만들어줘.
+
+[기존 초안]
+${baseDraft}`
+      : baseInfo;
 
     const response = await openai.chat.completions.create({
       model: "gpt-5.4",
