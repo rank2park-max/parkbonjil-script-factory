@@ -21,7 +21,7 @@ const KEY_FIELDS: KeyField[] = [
     color: "bg-gpt",
     focusColor: "focus:border-gpt focus:ring-gpt",
     placeholder: "sk-...",
-    description: "GPT 초안 생성 + 목차 생성에 사용됩니다 (gpt-5.3)",
+    description: "GPT 초안 생성 + 목차 생성에 사용됩니다 (gpt-5.3-chat-latest)",
   },
   {
     provider: "anthropic",

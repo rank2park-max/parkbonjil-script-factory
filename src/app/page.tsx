@@ -128,8 +128,12 @@ export default function HomePage() {
     setTopicResults(null);
 
     try {
+      const ctrl = new AbortController();
+      const timeout = setTimeout(() => ctrl.abort(), 90_000);
+
       const res = await fetch("/api/recommend-topics", {
         method: "POST",
+        signal: ctrl.signal,
         headers: {
           "Content-Type": "application/json",
           "x-openai-api-key": getApiKey("openai") || "",
@@ -138,14 +142,23 @@ export default function HomePage() {
           "x-xai-api-key": getApiKey("xai") || "",
           "x-perplexity-api-key": getApiKey("perplexity") || "",
         },
+        body: JSON.stringify({}),
       });
+
+      clearTimeout(timeout);
+
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      setTopicResults(data.results);
+      if (!res.ok) throw new Error(data.error || "API 오류");
+      const results = Array.isArray(data.results) ? data.results : [];
+      setTopicResults(results);
     } catch (err: unknown) {
-      setTopicError(
-        err instanceof Error ? err.message : "주제 추천에 실패했습니다."
-      );
+      const message =
+        err instanceof Error
+          ? err.name === "AbortError"
+            ? "요청 시간이 초과되었습니다. 네트워크 상태를 확인 후 다시 시도해주세요."
+            : err.message
+          : "주제 추천에 실패했습니다.";
+      setTopicError(message);
     } finally {
       setLoadingTopics(false);
     }
@@ -273,7 +286,7 @@ export default function HomePage() {
             </div>
           )}
 
-          {topicResults && !loadingTopics && topicResults.length > 0 && (
+          {!loadingTopics && topicResults !== null && topicResults.length > 0 && (
             <div className="max-w-5xl mx-auto mt-4">
               <h3 className="text-sm font-medium text-zinc-400 mb-3">
                 AI 추천 주제 — 클릭하면 영상 주제에 자동 입력됩니다
@@ -287,6 +300,12 @@ export default function HomePage() {
                   />
                 ))}
               </div>
+            </div>
+          )}
+
+          {!loadingTopics && topicResults !== null && topicResults.length === 0 && (
+            <div className="max-w-5xl mx-auto mt-4 p-4 rounded-xl bg-zinc-900 border border-zinc-800 text-center text-sm text-zinc-500">
+              추천 결과가 없습니다. 설정에서 API 키를 등록했는지 확인해주세요.
             </div>
           )}
 

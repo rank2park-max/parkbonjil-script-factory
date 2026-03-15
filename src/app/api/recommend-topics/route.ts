@@ -55,17 +55,16 @@ function parseJSON(raw: string) {
 async function callGPT(apiKey: string) {
   const openai = new OpenAI({ apiKey });
   const res = await openai.chat.completions.create({
-    model: "gpt-5.3",
+    model: "gpt-5.3-chat-latest",
     response_format: { type: "json_object" },
     messages: [
       { role: "system", content: SYSTEM_PROMPT },
       { role: "user", content: USER_MESSAGE },
     ],
-    temperature: 0.7,
   });
   const content = res.choices[0]?.message?.content;
   if (!content) throw new Error("빈 응답");
-  return JSON.parse(content);
+  return parseJSON(content);
 }
 
 async function callClaude(apiKey: string) {
@@ -93,7 +92,6 @@ async function callGemini(apiKey: string) {
       contents: [{ parts: [{ text: USER_MESSAGE }] }],
       generationConfig: {
         responseMimeType: "application/json",
-        temperature: 0.7,
       },
     }),
   });
@@ -113,7 +111,6 @@ async function callGrok(apiKey: string) {
       { role: "system", content: SYSTEM_PROMPT },
       { role: "user", content: USER_MESSAGE },
     ],
-    temperature: 0.7,
   });
   const content = res.choices[0]?.message?.content;
   if (!content) throw new Error("빈 응답");
@@ -133,7 +130,6 @@ async function callPerplexity(apiKey: string) {
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: USER_MESSAGE },
       ],
-      temperature: 0.7,
     }),
   });
   const data = await res.json();
@@ -141,6 +137,17 @@ async function callPerplexity(apiKey: string) {
   const content = data.choices?.[0]?.message?.content;
   if (!content) throw new Error("빈 응답");
   return parseJSON(content);
+}
+
+const AI_CALL_TIMEOUT_MS = 45_000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`${label}: 요청 시간 초과 (${ms / 1000}초)`)), ms)
+    ),
+  ]);
 }
 
 const AI_CONFIGS = [
@@ -162,7 +169,12 @@ export async function POST(req: NextRequest) {
           error: "API 키가 설정되지 않았습니다",
         });
       }
-      return caller(apiKey)
+      const callPromise = withTimeout(
+        caller(apiKey),
+        AI_CALL_TIMEOUT_MS,
+        name
+      );
+      return callPromise
         .then((data) => ({
           ai: name,
           status: "success" as const,

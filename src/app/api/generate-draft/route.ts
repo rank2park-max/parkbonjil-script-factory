@@ -112,13 +112,12 @@ ${baseDraft}`
       : "";
 
     const response = await openai.chat.completions.create({
-      model: "gpt-5.3",
+      model: "gpt-5.3-chat-latest",
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: systemPrompt + refineSystemAddon },
         { role: "user", content: userMessage },
       ],
-      temperature: 0.8,
     });
 
     const content = response.choices[0]?.message?.content;
