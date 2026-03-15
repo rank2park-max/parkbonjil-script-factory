@@ -42,3 +42,15 @@ export function resetSupabaseClient(): void {
   cachedUrl = null;
   cachedKey = null;
 }
+
+/** 클라이언트: API 호출 시 헤더로 전달할 Supabase 자격증명 (localStorage) */
+export function getSupabaseHeaders(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  const url = localStorage.getItem("script-factory-supabase-url");
+  const key = localStorage.getItem("script-factory-supabase-anon-key");
+  if (!url || !key) return {};
+  return {
+    "x-supabase-url": url,
+    "x-supabase-anon-key": key,
+  };
+}

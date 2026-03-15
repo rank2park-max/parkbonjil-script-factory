@@ -9,6 +9,7 @@ import WorkArea from "@/components/WorkArea";
 import IntroArea from "@/components/IntroArea";
 import RightPanel from "@/components/RightPanel";
 import { PanelRight, Copy, Download, Check, Loader2 } from "lucide-react";
+import { getSupabaseHeaders } from "@/lib/supabase";
 
 interface ReferenceMaterial {
   id: string;
@@ -33,7 +34,10 @@ function WorkspaceContent() {
   const [refSelectedIds, setRefSelectedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    fetch("/api/reference-materials")
+    fetch("/api/reference-materials", {
+      headers: getSupabaseHeaders(),
+      cache: "no-store",
+    })
       .then((r) => (r.ok ? r.json() : []))
       .then((list: ReferenceMaterial[]) => setRefMaterials(list))
       .catch(() => setRefMaterials([]));

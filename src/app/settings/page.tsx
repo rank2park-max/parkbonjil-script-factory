@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { setApiKey, getApiKey } from "@/lib/workspace-store";
-import { isSupabaseConfigured, resetSupabaseClient } from "@/lib/supabase";
+import { isSupabaseConfigured, resetSupabaseClient, getSupabaseHeaders } from "@/lib/supabase";
 import { Key, Check, Eye, EyeOff, Database, BookOpen, Upload, Trash2, Loader2 } from "lucide-react";
 
 interface KeyField {
@@ -103,7 +103,8 @@ export default function SettingsPage() {
     }
 
     resetSupabaseClient();
-    setSbConfigured(isSupabaseConfigured());
+    // 저장한 값으로 즉시 연결 상태 반영 (localStorage 읽기 타이밍 이슈 방지)
+    setSbConfigured(!!(url && key));
     setSupabaseSaved(true);
     setTimeout(() => setSupabaseSaved(false), 2000);
   };
@@ -287,7 +288,10 @@ function ReferenceMaterialsSection({ sbConfigured }: { sbConfigured: boolean }) 
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/reference-materials");
+      const res = await fetch("/api/reference-materials", {
+        headers: getSupabaseHeaders(),
+        cache: "no-store",
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "로드 실패");
       setMaterials(Array.isArray(data) ? data : []);
@@ -312,6 +316,7 @@ function ReferenceMaterialsSection({ sbConfigured }: { sbConfigured: boolean }) 
       formData.append("file", file);
       const res = await fetch("/api/reference-materials", {
         method: "POST",
+        headers: getSupabaseHeaders(),
         body: formData,
       });
       const data = await res.json();
@@ -333,7 +338,7 @@ function ReferenceMaterialsSection({ sbConfigured }: { sbConfigured: boolean }) 
     try {
       const res = await fetch("/api/reference-materials", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getSupabaseHeaders() },
         body: JSON.stringify({ title: textTitle.trim(), content: textContent.trim() }),
       });
       const data = await res.json();
@@ -353,6 +358,7 @@ function ReferenceMaterialsSection({ sbConfigured }: { sbConfigured: boolean }) 
     try {
       const res = await fetch(`/api/reference-materials?id=${id}`, {
         method: "DELETE",
+        headers: getSupabaseHeaders(),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "삭제 실패");

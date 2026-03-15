@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 import { getSupabaseClient } from "@/lib/supabase";
 
 export interface ReferenceMaterial {
@@ -9,11 +10,26 @@ export interface ReferenceMaterial {
   created_at: string;
 }
 
-export async function GET() {
-  const supabase = getSupabaseClient();
+function getSupabaseFromRequest(req: NextRequest | null) {
+  const url =
+    req?.headers.get("x-supabase-url") ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    null;
+  const key =
+    req?.headers.get("x-supabase-anon-key") ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    null;
+  if (url && key) {
+    return createClient(url, key);
+  }
+  return getSupabaseClient();
+}
+
+export async function GET(req: NextRequest) {
+  const supabase = getSupabaseFromRequest(req);
   if (!supabase) {
     return NextResponse.json(
-      { error: "Supabase가 설정되지 않았습니다." },
+      { error: "Supabase가 설정되지 않았습니다. 설정에서 URL과 Anon Key를 저장했는지 확인하세요." },
       { status: 400 }
     );
   }
@@ -33,10 +49,10 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const supabase = getSupabaseClient();
+  const supabase = getSupabaseFromRequest(req);
   if (!supabase) {
     return NextResponse.json(
-      { error: "Supabase가 설정되지 않았습니다." },
+      { error: "Supabase가 설정되지 않았습니다. 설정 페이지에서 URL과 Anon Key를 저장하거나, .env.local에 환경변수를 설정하세요." },
       { status: 400 }
     );
   }
@@ -118,10 +134,10 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const supabase = getSupabaseClient();
+  const supabase = getSupabaseFromRequest(req);
   if (!supabase) {
     return NextResponse.json(
-      { error: "Supabase가 설정되지 않았습니다." },
+      { error: "Supabase가 설정되지 않았습니다. 설정 페이지에서 URL과 Anon Key를 저장하거나, .env.local에 환경변수를 설정하세요." },
       { status: 400 }
     );
   }
