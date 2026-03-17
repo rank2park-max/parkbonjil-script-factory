@@ -138,7 +138,7 @@ export default function ProjectsPage() {
               return (
                 <button
                   key={project.id}
-                  onClick={() => router.push(`/workspace?id=${project.id}`)}
+                  onClick={() => router.push(`/editor?id=${project.id}`)}
                   className="w-full text-left bg-zinc-900 border border-zinc-800 rounded-xl p-4 hover:border-zinc-700 hover:bg-zinc-900/80 transition-colors group"
                 >
                   <div className="flex items-start justify-between gap-3">

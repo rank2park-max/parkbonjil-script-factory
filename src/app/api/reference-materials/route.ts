@@ -20,7 +20,14 @@ function getSupabaseFromRequest(req: NextRequest | null) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
     null;
   if (url && key) {
-    return createClient(url, key);
+    return createClient(url, key, {
+      global: {
+        headers: {
+          "Content-Type": "application/json; charset=utf-8",
+          Accept: "application/json; charset=utf-8",
+        },
+      },
+    });
   }
   return getSupabaseClient();
 }
@@ -41,7 +48,9 @@ export async function GET(req: NextRequest) {
       .order("created_at", { ascending: false });
 
     if (error) throw error;
-    return NextResponse.json(data || []);
+    return NextResponse.json(data || [], {
+      headers: { "Content-Type": "application/json; charset=utf-8" },
+    });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "알 수 없는 오류";
     return NextResponse.json({ error: msg }, { status: 500 });
@@ -126,7 +135,9 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error) throw error;
-    return NextResponse.json(data);
+    return NextResponse.json(data, {
+      headers: { "Content-Type": "application/json; charset=utf-8" },
+    });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "알 수 없는 오류";
     return NextResponse.json({ error: msg }, { status: 500 });

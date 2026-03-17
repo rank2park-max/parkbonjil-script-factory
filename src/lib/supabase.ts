@@ -25,7 +25,14 @@ export function getSupabaseClient(): SupabaseClient | null {
   if (!config) return null;
 
   if (!client || cachedUrl !== config.url || cachedKey !== config.key) {
-    client = createClient(config.url, config.key);
+    client = createClient(config.url, config.key, {
+      global: {
+        headers: {
+          "Content-Type": "application/json; charset=utf-8",
+          Accept: "application/json; charset=utf-8",
+        },
+      },
+    });
     cachedUrl = config.url;
     cachedKey = config.key;
   }

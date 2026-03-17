@@ -35,7 +35,6 @@ export default function Header() {
               내 프로젝트
             </span>
           </Link>
-          <Link href="/workspace" className={linkClass("/workspace")}>작업공간</Link>
           <Link href="/settings" className={linkClass("/settings")}>
             <Settings className="w-4 h-4" />
           </Link>
